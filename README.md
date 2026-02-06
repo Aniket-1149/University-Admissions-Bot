@@ -47,6 +47,9 @@ This application implements several advanced patterns to ensure reliability and 
 - **⚡ Client-Side PDF Pre-processing**:
   Uses `pdfjs-dist` to extract and sanitize text directly in the browser (React). This reduces server bandwidth and allows for immediate feedback to the user before the API call is even made.
 
+- **💾 Zero-Login Persistence**:
+  Implements a robust `localStorage` state management system. This allows users to retain their chat history, analysis results, and context across browser sessions without needing to create an account or log in, maintaining privacy while offering continuity.
+
 ## 🛠️ Tech Stack
 
 ### Frontend (`/frontend`)
