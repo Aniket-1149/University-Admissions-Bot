@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -20,12 +21,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const COMPRESSION_SYSTEM_PROMPT = `You are a precision data extraction system for college admission documents.
 
 CRITICAL RULES:
-1. Extract ONLY factual admission requirements - NO marketing content
-2. Remove all promotional language, testimonials, and subjective claims
-3. Output MUST be valid JSON with exact structure
-4. Be concise but complete - include all admission criteria
-5. Never hallucinate or infer information not explicitly stated
-6. If information is unclear or missing, omit that field
+1. Extract ALL factual admission requirements, no matter how small.
+2. If text is provided, read it THOROUGHLY. Do not skip tables or lists.
+3. Output MUST be valid JSON with exact structure.
+4. If fee information is ambiguous, list what IS there.
+5. If academic requirements are scattered, consolidate them list them all.
+6. For programs, extract every program name mentioned.
 
 REQUIRED JSON STRUCTURE:
 {
@@ -33,24 +34,25 @@ REQUIRED JSON STRUCTURE:
   "programs": [
     {
       "name": "string",
-      "degree": "string",
+      "degree": "string (e.g. BS, MS, PhD, Certificate)",
       "duration": "string"
     }
   ],
   "requirements": {
-    "academic": ["list of academic requirements"],
-    "testScores": ["list of required test scores with minimum values"],
-    "documents": ["list of required documents"]
+    "academic": ["list of academic requirements, GPA, specific degrees needed"],
+    "testScores": ["list of required test scores with minimum values (SAT, ACT, GRE, TOEFL, IELTS etc)"],
+    "documents": ["list of required documents (transcripts, letters, essays, resume etc)"]
   },
-  "deadlines": ["list of important dates"],
+  "deadlines": ["list of important dates for application, scholarships, etc."],
   "fees": {
     "applicationFee": "string",
-    "tuitionFee": "string"
+    "tuitionFee": "string (include per credit or per year details if available)",
+    "otherFees": ["list of other mentioned fees"]
   },
-  "additionalInfo": ["any other critical admission information"]
+  "additionalInfo": ["financial aid, scholarships, contact info. CLEAN TEXT ONLY. Do not use asterisks, bolding, or markdown. Split distinct points into separate items."]
 }
 
-Extract and compress the admission guidelines now.`;
+Extract and compress the admission guidelines now. Ensure all string fields contain clean text without markdown formatting (no **, *, #, etc).`;
 
 const QA_SYSTEM_PROMPT = `You are a precise Q&A assistant for college admissions.
 
@@ -84,21 +86,30 @@ app.post('/api/compress', async (req, res) => {
       return res.status(500).json({ error: 'Gemini API key not configured' });
     }
 
-    // Use Gemini 2.5 Flash for compression
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
-    });
-
     const prompt = `${COMPRESSION_SYSTEM_PROMPT}\n\nADMISSION DOCUMENT:\n${text}`;
+    const generationConfig = {
+      temperature: 0.1, // Keep low for consistency
+      topP: 0.8,
+      topK: 40,
+      maxOutputTokens: 8192, // Allow for longer outputs to capture all details
+    };
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        topP: 0.8,
-        topK: 40,
+    let result;
+    try {
+      // Try with Gemini 2.5 Flash
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig
+      });
+    } catch (error) {
+      if (error.status === 429 || (error.message && error.message.includes('429'))) {
+        console.log('Gemini 2.5 Flash rate limited (Compress), switching to ScaleDown API...');
+        result = await callScaleDownAPI(text, COMPRESSION_SYSTEM_PROMPT);
+      } else {
+        throw error;
       }
-    });
+    }
     const response = await result.response;
     let responseText = response.text();
 
@@ -112,10 +123,18 @@ app.post('/api/compress', async (req, res) => {
     } catch (parseError) {
       console.error('JSON Parse Error:', parseError);
       console.error('Response Text:', responseText);
-      return res.status(500).json({ 
-        error: 'Failed to parse AI response. Please try again.',
-        details: parseError.message 
-      });
+      
+      // Fallback: If responseText is not JSON (e.g. ScaleDown returned plain text),
+      // wrap it in the expected structure so the frontend can display it.
+      if (responseText && responseText.length > 0) {
+        console.log('Attempting to structure raw text using heuristics...');
+        compressedData = structureRawText(responseText);
+      } else {
+        return res.status(500).json({ 
+          error: 'Failed to parse AI response. Please try again.',
+          details: parseError.message 
+        });
+      }
     }
 
     res.json(compressedData);
@@ -146,21 +165,31 @@ app.post('/api/ask-question', async (req, res) => {
       return res.status(500).json({ error: 'Gemini API key not configured' });
     }
 
-    // Use Gemini 2.5 Flash for Q&A
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
-    });
-
     const prompt = `${QA_SYSTEM_PROMPT}\n\nADMISSION DATA:\n${JSON.stringify(compressedData, null, 2)}\n\nSTUDENT QUESTION:\n${question}\n\nANSWER:`;
+    const generationConfig = {
+      temperature: 0.2,
+      topP: 0.8,
+      topK: 40,
+    };
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        topP: 0.8,
-        topK: 40,
+    let result;
+    try {
+      // Try with Gemini 2.5 Flash
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig
+      });
+    } catch (error) {
+      if (error.status === 429 || (error.message && error.message.includes('429'))) {
+        console.log('Gemini 2.5 Flash rate limited (Q&A), switching to ScaleDown API...');
+        const qaPrompt = `${QA_SYSTEM_PROMPT}\n\nSTUDENT QUESTION:\n${question}`;
+        const contextData = JSON.stringify(compressedData, null, 2);
+        result = await callScaleDownAPI(contextData, qaPrompt);
+      } else {
+        throw error;
       }
-    });
+    }
     const response = await result.response;
     const answer = response.text().trim();
 
@@ -174,6 +203,141 @@ app.post('/api/ask-question', async (req, res) => {
     });
   }
 });
+
+// Helper to call ScaleDown API
+async function callScaleDownAPI(context, promptText) {
+  const apiKey = process.env.SCALEDOWN_API_KEY;
+  const url = "https://api.scaledown.xyz/compress/raw/";
+
+  if (!apiKey) {
+    throw new Error('SCALEDOWN_API_KEY is not configured');
+  }
+
+  console.log('Calling ScaleDown API as fallback...');
+
+  const payload = {
+    context: context,
+    prompt: promptText,
+    model: "gpt-4o",
+    scaledown: {
+      rate: "auto"
+    }
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ScaleDown API Error (${response.status}): ${errorText}`);
+  }
+
+  const result = await response.json();
+  console.log('ScaleDown Raw Response:', JSON.stringify(result, null, 2));
+
+  // Map ScaleDown 'compressed_prompt' to the expected text output
+  // Support both direct property (from docs) and nested in results (from actual logs)
+  const content = result.results?.compressed_prompt || result.compressed_prompt || "";
+  
+  if (!content) {
+    console.warn("ScaleDown returned empty compressed_prompt");
+  }
+  
+  return {
+    response: {
+      text: () => content
+    }
+  };
+}
+
+// Heuristic function to structure raw text into JSON when AI fails
+function structureRawText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  
+  const data = {
+    universityName: "University Admission Guide (Compressed)",
+    programs: [],
+    requirements: {
+      academic: [],
+      testScores: [],
+      documents: []
+    },
+    deadlines: [],
+    fees: {
+      applicationFee: "Not specified",
+      tuitionFee: "Not specified",
+      otherFees: []
+    },
+    additionalInfo: []
+  };
+
+  // Keywords for simple classification
+  const feeRegex = /(fee|rupees|rs\.|cost|payment|amount)/i;
+  const appFeeRegex = /(application|registration)\s+fee/i;
+  const deadlineRegex = /(date|deadline|schedule|submit|closing|open)/i;
+  const programRegex = /(b\.?a\.|b\.?sc|m\.?a\.|m\.?sc|b\.?tech|m\.?tech|ph\.?d|degree|honours|major|course)/i;
+  const academicRegex = /(eligib|mark|score|percent|class|grade|pass|qualification|criteri)/i;
+  const documentRegex = /(mark\s?sheet|certificate|admit|card|photo|copy|copies)/i;
+
+  // Try to set title from first line
+  if (lines.length > 0 && lines[0].length < 100) {
+    data.universityName = lines[0];
+  }
+
+  lines.forEach(line => {
+    let matched = false;
+
+    // Fees
+    if (feeRegex.test(line)) {
+      if (appFeeRegex.test(line)) {
+        data.fees.applicationFee = line;
+      } else {
+        data.fees.otherFees.push(line);
+      }
+      matched = true;
+    }
+
+    // Deadlines
+    if (deadlineRegex.test(line)) {
+      data.deadlines.push(line);
+      matched = true;
+    }
+
+    // Programs
+    if (programRegex.test(line) && line.length < 100) {
+      data.programs.push({
+        name: line,
+        degree: "Unspecified",
+        duration: "Unspecified"
+      });
+      matched = true;
+    }
+
+    // Requirements
+    if (academicRegex.test(line)) {
+      data.requirements.academic.push(line);
+      matched = true;
+    }
+    
+    if (documentRegex.test(line)) {
+      data.requirements.documents.push(line);
+      matched = true;
+    }
+
+    // Fallback
+    if (!matched) {
+      data.additionalInfo.push(line);
+    }
+  });
+
+  return data;
+}
 
 // Start server
 app.listen(PORT, () => {

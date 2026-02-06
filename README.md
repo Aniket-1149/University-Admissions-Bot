@@ -1,261 +1,132 @@
-# College Admissions Assistant
+# University Admissions Bot 🎓🤖
 
-An AI-powered web application that helps students navigate university admission guidelines by extracting structured information and answering questions about admission requirements.
+An intelligent, AI-powered assistant designed to simplify the complex process of understanding university admission guidelines. This application extracts structured data from chaos, answering student questions with precision using Google's Gemini 2.5 Flash model and robust fallback systems.
 
-![React](https://img.shields.io/badge/React-19.2.0-61dafb?logo=react)
-![Vite](https://img.shields.io/badge/Vite-7.2.4-646cff?logo=vite)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1.18-38bdf8?logo=tailwindcss)
-![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js)
-![Google Gemini](https://img.shields.io/badge/Google-Gemini%20AI-4285f4?logo=google)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&style=flat-square)
+![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&style=flat-square)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&style=flat-square)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&style=flat-square)
+![Gemini AI](https://img.shields.io/badge/Google-Gemini_2.5_Flash-8E75B2?logo=google&style=flat-square)
 
-## Features
+## 🌟 Features
 
-- **Guideline Compression**: Paste or upload university admission guidelines and receive a structured, factual summary
-- **Marketing Removal**: Automatically filters out promotional content, focusing only on hard requirements
-- **Intelligent Q&A**: Ask follow-up questions based strictly on the compressed data
-- **Modern UI**: Beautiful ChatGPT-like dark theme interface with responsive design
-- **Mobile Friendly**: Fully responsive design that works on all devices
-- **Conversation History**: Save and revisit previous guideline analyses
-- **Real-time Processing**: Instant AI-powered responses using Google Gemini
+### 🧠 Intelligent Processing
+- **Smart Compression**: Converts lengthy, messy admission documents into structured JSON data (Fees, Deadlines, Requirements, Programs).
+- **Multi-Model AI**: 
+  - Primary: **Gemini 2.5 Flash** for high-speed, high-quality extraction.
+  - Fallback 1: **Gemini 1.5 Flash** (Auto-switch on API rate limits).
+  - Fallback 2: **ScaleDown API** (Third-layer backup for robust uptime).
+- **Heuristic Recovery**: Custom parsing engine to structure raw text even if the AI model returns unstructured data.
 
-## Tech Stack
+### 📄 Document Support
+- **PDF Scanning**: Built-in PDF text extraction using `pdfjs-dist`.
+- **Text & Raw Input**: Paste guidelines directly or upload text files.
+- **Visual Feedback**: "Document Attached" cards in chat history.
 
-### Frontend
-- **React 19.2.0** - Modern UI library with latest features
-- **Vite 7.2.4** - Lightning-fast build tool and dev server
-- **Tailwind CSS 4.1.18** - Utility-first CSS framework
-- **Axios** - HTTP client for API requests
+### 💬 Interactive Chat
+- **Context-Aware Q&A**: Ask questions specifically about the uploaded document. The bot won't hallucinate outside the provided context.
+- **Markdown Rendering**: Beautifully formatted responses with lists, bold text, and headers.
+- **Persistent History**: Chat history saved locally with sidebar navigation.
 
-### Backend
-- **Node.js** - JavaScript runtime
-- **Express 5.2.1** - Fast web framework
-- **Google Generative AI** - Gemini 2.5 Flash model integration
-- **CORS** - Cross-origin resource sharing
-- **dotenv** - Environment variable management
+## 🦄 Unique Technical Highlights
 
-## Prerequisites
+This application implements several advanced patterns to ensure reliability and accuracy:
 
-Before you begin, ensure you have:
+- **🛡️ Triple-Layer Robustness Strategy**:
+  Unlike standard bots that crash on rate limits, this API employs a waterfall fallback architecture:
+  1.  **Primary**: Gemini 2.5 Flash (Best capabilities).
+  2.  **Secondary**: Gemini 1.5 Flash (Auto-switch on 429/500 errors).
+  3.  **Tertiary**: ScaleDown API (External backup provider).
 
-- **Node.js** (v18 or higher) - [Download here](https://nodejs.org/)
-- **npm** (comes with Node.js)
-- **Google Gemini API Key** - [Get one here](https://aistudio.google.com/app/apikey)
+- **🧩 Hybrid Heuristic Engine**:
+  AI models differ in output stability. If the AI returns raw text instead of JSON, our **Custom Heuristic Parser** kicks in. It uses regular expression pattern matching to extract Fees, Deadlines, and Requirements from unstructured text, ensuring the UI always renders data.
 
-## Installation
+- **🧹 Anti-Hallucination & Marketing Filter**:
+  University brochures are 50% marketing fluff. The system prompts are engineered to perform **Aggressive Filtering**—stripping out promotional language ("world-class campus", "vibrant community") to leave only hard data (GPA requirements, tuition costs, deadlines).
 
-### 1. Clone the Repository
+- **⚡ Client-Side PDF Pre-processing**:
+  Uses `pdfjs-dist` to extract and sanitize text directly in the browser (React). This reduces server bandwidth and allows for immediate feedback to the user before the API call is even made.
 
+## 🛠️ Tech Stack
+
+### Frontend (`/frontend`)
+- **Framework**: React 19 + Vite
+- **Styling**: Tailwind CSS v4
+- **PDF Processing**: `pdfjs-dist`
+- **Markdown**: `react-markdown`
+- **Icons**: `lucide-react` / Custom SVG Icons
+
+### Backend (`/backend`)
+- **Server**: Node.js + Express
+- **AI Integration**: `@google/generative-ai` SDK
+- **Resilience**: Custom 3-layer error handling and rate-limit management.
+- **Utilities**: `dotenv`, `cors`, `node-fetch`.
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- Google Gemini API Key
+- (Optional) ScaleDown API Key
+
+### 1. Clone & Install
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
 cd "project genz"
 ```
 
 ### 2. Backend Setup
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Install dependencies
-npm install
-
-# Create .env file from example
-copy .env.example .env
-
-# Edit .env and add your Gemini API key
-# GEMINI_API_KEY=your_actual_api_key_here
-```
-
-### 3. Frontend Setup
-
-```bash
-# Navigate to frontend directory
-cd ../frontend
-
-# Install dependencies
-npm install
-
-# Create .env file from example
-copy .env.example .env
-
-# The default API URL should work (http://localhost:5000)
-```
-
-## Running the Application
-
-### Start Backend Server
-
 ```bash
 cd backend
-npm start
+npm install
 ```
-
-Server will run on: `http://localhost:5000`
-
-### Start Frontend Development Server
-
-Open a new terminal:
-
+Create a `.env` file in the `backend` folder:
+```properties
+PORT=5000
+GEMINI_API_KEY=your_gemini_api_key_here
+SCALEDOWN_API_KEY=your_scaledown_api_key_here # Optional
+SCALEDOWN_API_URL=https://api.scaledown.xyz/compress/raw/ # Optional
+```
+Start the server:
 ```bash
-cd frontend
 npm run dev
 ```
 
-Frontend will run on: `http://localhost:5173`
-
-### Access the Application
-
-Open your browser and navigate to:
-```
-http://localhost:5173
-```
-
-## Usage Guide
-
-### 1. Compress Admission Guidelines
-
-1. **Paste Text**: Copy admission guidelines and paste directly into the input area
-2. **Upload File**: Drag & drop or click to upload `.txt` or `.pdf` files
-3. **Click "Compress Guidelines"**: The AI will extract structured admission data
-4. **View Results**: Get a clean, factual summary with:
-   - General information
-   - Eligibility criteria
-   - Application requirements
-   - Important dates and deadlines
-   - Financial information
-   - Program-specific details
-
-### 2. Ask Follow-up Questions
-
-After compression:
-1. Type your question in the chat input
-2. Press Enter or click Send
-3. Get answers based strictly on the compressed data
-
-### 3. Manage Conversations
-
-- **New Conversation**: Click "+ New Chat" to start fresh
-- **View History**: Access previous conversations from the sidebar
-- **Toggle Sidebar**: Click the menu icon to show/hide conversation history
-
-## API Endpoints
-
-### Backend API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check endpoint |
-| `/api/compress` | POST | Compress admission guidelines |
-| `/api/ask-question` | POST | Ask questions about compressed data |
-
-### Request Examples
-
-**Compress Guidelines:**
-```json
-POST /api/compress
-{
-  "guidelinesText": "Your admission guidelines text here..."
-}
-```
-
-**Ask Question:**
-```json
-POST /api/ask-question
-{
-  "question": "What is the minimum GPA requirement?",
-  "compressedData": { /* previously compressed data */ }
-}
-```
-
-## UI Features
-
-- **Dark Theme**: Easy on the eyes with professional gray-900 background
-- **Emerald Accents**: Modern gradient highlights for important elements
-- **Smooth Animations**: Typing indicators and message transitions
-- **Responsive Layout**: Adapts seamlessly to different screen sizes
-- **Custom Scrollbars**: Styled scrollbars for better aesthetics
-- **Loading States**: Visual feedback during API processing
-
-## Development
-
-### Frontend Scripts
-
+### 3. Frontend Setup
+Open a new terminal:
 ```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run lint     # Run ESLint
+cd frontend
+npm install
 ```
-
-### Backend Scripts
-
+Start the UI:
 ```bash
-npm start        # Start server
-npm run dev      # Start with auto-reload
+npm run dev
 ```
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 project genz/
-├── frontend/
+├── backend/                 # API Server
+│   ├── server.js            # Main Express app & AI logic
+│   ├── sample-admission...  # Test data
+│   └── package.json
+├── frontend/                # React Client
 │   ├── src/
-│   │   ├── App.jsx           # Main React component
-│   │   ├── App.css           # Custom styles
-│   │   ├── index.css         # Tailwind base styles
-│   │   └── main.jsx          # Entry point
-│   ├── public/               # Static assets
-│   ├── .env                  # Environment variables
-│   ├── package.json          # Dependencies
-│   └── vite.config.js        # Vite configuration
-│
-├── backend/
-│   ├── server.js             # Express server
-│   ├── .env                  # Environment variables (API key)
-│   └── package.json          # Dependencies
-│
-└── README.md                 # This file
+│   │   ├── components/      # UI Components (Chat, Sidebar, Header)
+│   │   ├── App.jsx          # Main Logic (State, File Handling)
+│   │   └── main.jsx         # Entry Point
+│   ├── public/
+│   └── package.json
+└── README.md
 ```
 
-## Environment Variables
+## 🛡️ Robustness & Fallbacks
 
-### Backend (.env)
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-PORT=5000
-```
-
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-## Troubleshooting
-
-### Backend Issues
-
-**Server won't start:**
-- Check if port 5000 is available
-- Verify `.env` file exists with valid `GEMINI_API_KEY`
-- Run `npm install` to ensure dependencies are installed
-
-**API errors:**
-- Verify your Gemini API key is valid
-- Check if you have internet connection
-- Ensure you're using a supported model (gemini-2.5-flash)
-
-### Frontend Issues
-
-**Vite won't start:**
-- Check if port 5173 is available
-- Run `npm install` to install dependencies
-- Clear browser cache and restart dev server
-
-**API connection errors:**
-- Verify backend is running on port 5000
-- Check `VITE_API_URL` in frontend `.env`
-- Ensure CORS is properly configured
+This project is built to handle API limitations gracefully:
+1.  **Rate Limit Detection**: Captures `429` errors from Google.
+2.  **Model Downgrade**: Automatically retries requests with lighter models.
+3.  **Third-Party Failover**: Can route traffic to ScaleDown API.
+4.  **Client-Side Recovery**: Simple heuristic parsing ensures formatting isn't lost if the model degrades to raw text.
 
 
-
-Built for students navigating college admissions
